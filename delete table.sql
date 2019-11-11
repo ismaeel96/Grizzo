@@ -1,0 +1,3 @@
+SET FOREIGN_KEY_CHECKS = 0; 
+TRUNCATE table grizzo.grizzo; 
+SET FOREIGN_KEY_CHECKS = 1

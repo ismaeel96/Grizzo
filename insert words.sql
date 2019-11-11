@@ -1,0 +1,2 @@
+INSERT INTO words(ID, word)
+VALUES('625109707929026577','fuck');
