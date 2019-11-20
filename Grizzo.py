@@ -20,7 +20,7 @@ cooldown_start = time.time()
 
 bot = commands.Bot(command_prefix=PREFIX)
 
-#reddit = praw.Reddit(client_id=config.REDDIT_ID, client_secret=config.REDDIT_SECRET,user_agent=config.USER_AGENT)
+# reddit = praw.Reddit(client_id=config.REDDIT_ID, client_secret=config.REDDIT_SECRET,user_agent=config.USER_AGENT)
 
 voice = None
 
@@ -42,53 +42,56 @@ async def meme(ctx):
     await ctx.send(util.meme(ctx))
     pass
 
+
 # new bot command for voting on a post
 @bot.command()
 async def vote(ctx, question, choices):
-    
-    choices.strip() # remove leading/trailing spaces from choices
-    choices_arr = choices.split(',') # split choices into array
+    choices.strip()  # remove leading/trailing spaces from choices
+    choices_arr = choices.split(',')  # split choices into array
     # emojis : apple, orange, banana, watermelon, grapes, cherries, pineapples
-    emojis = ['🍎', '🍊', '🍌', '🍉', '🍇', '🍒', '🍍'] # emojis array to coincide with choices
+    emojis = ['🍎', '🍊', '🍌', '🍉', '🍇', '🍒', '🍍']  # emojis array to coincide with choices
     # currently max of 7 (might not properly display in your editor)
-    
+
     # create message object and announce the vote
-    message = await ctx.send(embed = util.vote_start(question, choices_arr, emojis))
-    
+    message = await ctx.send(embed=util.vote_start(question, choices_arr, emojis))
+
     # add reactions
     i = 0
-    while i < len(choices_arr): # add each selectable choice through an emoji to click
+    while i < len(choices_arr):  # add each selectable choice through an emoji to click
         await message.add_reaction(emojis[i])
         i += 1
-        
+
     # wait for x seconds
     await asyncio.sleep(15)
-    
+
     # recreate message object with reactions included
     message = await ctx.fetch_message(message.id)
-    
+
     # count reactions and announce winner
-    await ctx.send(embed = util.tally_up(question, choices_arr, message))
+    await ctx.send(embed=util.tally_up(question, choices_arr, message))
     pass
+
 
 # new bot command for pulling messages
 @bot.command()
-async def pull(ctx, chan = "general", num = 5, hist_num = 100): # context, channel, number of messages, how far the history goes
+async def pull(ctx, chan="general", num=5,
+               hist_num=100):  # context, channel, number of messages, how far the history goes
     # defaults included
-    
+
     # create channel object
-    channel = discord.utils.get(ctx.guild.channels,name = chan)
+    channel = discord.utils.get(ctx.guild.channels, name=chan)
     # create message history
-    messages = await channel.history(limit= hist_num).flatten()
-    
+    messages = await channel.history(limit=hist_num).flatten()
+
     message_list = []
-    
+
     i = 0
     while i < len(messages):
         message_list.append(messages[i].content)
         i += 1
-    await ctx.send(embed = util.pull(ctx, message_list, num))
+    await ctx.send(embed=util.pull(ctx, message_list, num))
     pass
+
 
 @bot.command(aliases=['j'])
 async def join(ctx):
@@ -105,6 +108,7 @@ async def join(ctx):
     else:
         await ctx.send("Please enter a voice channel before requesting Grizzo to join.")
     pass
+
 
 @bot.command()
 async def npc(ctx):
@@ -151,7 +155,7 @@ async def youtube(ctx, *args):
     voice.source.volume = 0.35
 
     cut = name.index(music.vid_id)
-    name = name[:(cut-1)]
+    name = name[:(cut - 1)]
     await ctx.send(f"Now playing: ***{name}***")
     pass
 
@@ -170,6 +174,55 @@ async def h(ctx):
     await ctx.send(util.cmd_help(prefix))
     pass
 
+
+@bot.command(aliases=['censor'], pass_context=True)
+async def censorword(ctx, phrase):
+    await ctx.send(util.censorword(phrase, ctx.message))
+    pass
+
+@bot.command(aliases=['uncensor'], pass_context=True)
+async def uncensorword(ctx, phrase):
+    await ctx.send(util.uncensorword(phrase, ctx.message))
+    pass
+
+@bot.command(aliases=['listcensors'], pass_context=True)
+async def censorlist(ctx):
+    await ctx.send(util.censorlist(ctx.message))
+    pass
+
+@bot.command(aliases=['removepin'], pass_context=True)
+async def unpin(ctx, id):
+    await ctx.send(util.unpin(ctx.message, id))
+    pass
+
+@bot.command(aliases=['pinnedlist'], pass_context=True)
+async def pins(ctx):
+    await ctx.send(util.pins(ctx.message))
+    pass
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    #profanity filter
+    for xi in util.arrayCensoredWords:
+        if xi in message.content.strip().lower():
+            await message.channel.send('{}, your message has been censored.'.format(message.author.mention))
+            await message.delete()
+            #print(xi)
+            break
+    #need to have this here so that the commands work
+    await bot.process_commands(message)
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    #print(reaction.message)
+    if reaction.emoji == "📌":
+        util.arrayPinned.append([reaction, user])
+        #print(arrayPinned[0][0].message.content)
+        channel = bot.get_channel(reaction.message.channel.id)
+        await channel.send('{}, has pinned {}\'s message, "{}"'.format(user.mention, reaction.message.author.mention, reaction.message.content))
+        #print(arrayPinned[0][1])
 
 @bot.event
 async def on_ready():
