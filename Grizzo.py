@@ -20,84 +20,80 @@ cooldown_start = time.time()
 
 bot = commands.Bot(command_prefix=PREFIX)
 
-#reddit = praw.Reddit(client_id=config.REDDIT_ID, client_secret=config.REDDIT_SECRET,user_agent=config.USER_AGENT)
+# reddit = praw.Reddit(client_id=config.REDDIT_ID, client_secret=config.REDDIT_SECRET,user_agent=config.USER_AGENT)
 
 voice = None
 
 
-@bot.command(brief='Sends a test message to a server')
+@bot.command()
 async def test(ctx):
     await ctx.send(util.test(ctx))
     pass
 
 
-@bot.command(aliases=['r'], brief='Rolls dice of variable number of sides', description='Arguments: XdY. X = # of dice,'
-                                                                                        ' Y = # or sides per die.\n'
-                                                                                        'Function: rolls dice of '
-                                                                                        'variable side lengths.')
+@bot.command(aliases=['r'])
 async def roll(ctx, arg):
     await ctx.send(util.dice_roller(ctx, arg))
     pass
 
 
-@bot.command(brief='Sends a random meme from reddit', description='Arguments: None.\nFunction: Posts a meme from'
-                                                                  ' Reddit.')
+@bot.command()
 async def meme(ctx):
     await ctx.send(util.meme(ctx))
     pass
 
+
 # new bot command for voting on a post
-@bot.command(brief='Creates a vote for a quick straw poll of the chatroom.', description='Arguments: question, choices, timer')
-async def vote(ctx, question, choices, timer = 15):
- 
-    choices.strip() # remove leading/trailing spaces from choices
-    choices_arr = choices.split(',') # split choices into array
+@bot.command()
+async def vote(ctx, question, choices):
+    choices.strip()  # remove leading/trailing spaces from choices
+    choices_arr = choices.split(',')  # split choices into array
     # emojis : apple, orange, banana, watermelon, grapes, cherries, pineapples
-    emojis = ['🍎', '🍊', '🍌', '🍉', '🍇', '🍒', '🍍'] # emojis array to coincide with choices
+    emojis = ['🍎', '🍊', '🍌', '🍉', '🍇', '🍒', '🍍']  # emojis array to coincide with choices
     # currently max of 7 (might not properly display in your editor)
-    
+
     # create message object and announce the vote
-    message = await ctx.send(embed = util.vote_start(question, choices_arr, emojis))
-    
+    message = await ctx.send(embed=util.vote_start(question, choices_arr, emojis))
+
     # add reactions
     i = 0
-    while i < len(choices_arr): # add each selectable choice through an emoji to click
+    while i < len(choices_arr):  # add each selectable choice through an emoji to click
         await message.add_reaction(emojis[i])
         i += 1
-        
+
     # wait for x seconds
-    await asyncio.sleep(timer)
-    
+    await asyncio.sleep(15)
+
     # recreate message object with reactions included
     message = await ctx.fetch_message(message.id)
-    
+
     # count reactions and announce winner
-    await ctx.send(embed = util.tally_up(question, choices_arr, message))
+    await ctx.send(embed=util.tally_up(question, choices_arr, message))
     pass
 
+
 # new bot command for pulling messages
-@bot.command(brief='Pulls a certain amount of messages from a certain channel', description='Arguments: channel, number of messages, history number)
-async def pull(ctx, chan = "general", num = 5, hist_num = 100): # context, channel, number of messages, how far the history goes
+@bot.command()
+async def pull(ctx, chan="general", num=5,
+               hist_num=100):  # context, channel, number of messages, how far the history goes
     # defaults included
-    
+
     # create channel object
-    channel = discord.utils.get(ctx.guild.channels,name = chan)
+    channel = discord.utils.get(ctx.guild.channels, name=chan)
     # create message history
-    messages = await channel.history(limit= hist_num).flatten()
-    
+    messages = await channel.history(limit=hist_num).flatten()
+
     message_list = []
-    
+
     i = 0
     while i < len(messages):
         message_list.append(messages[i].content)
         i += 1
-    await ctx.send(embed = util.pull(ctx, message_list, num))
+    await ctx.send(embed=util.pull(ctx, message_list, num))
     pass
 
 
-@bot.command(aliases=['j'], brief='Joins the users current voice channel', description='Arguments: None.\nFunction:'
-                                                                                       ' Joins current voice channel of'
-                                                                                       ' the author of the command.')
+@bot.command(aliases=['j'])
 async def join(ctx):
     global voice
     if ctx.author.voice:
@@ -113,15 +109,14 @@ async def join(ctx):
         await ctx.send("Please enter a voice channel before requesting Grizzo to join.")
     pass
 
+
 @bot.command()
 async def npc(ctx):
     await ctx.send(util.npc(ctx))
     pass
 
 
-@bot.command(aliases=['d'], brief='Disconnects from current voice channel', description='Arguments: None.\n'
-                                                                                        'Function: Disconnects from '
-                                                                                        'voice.')
+@bot.command(aliases=['d'])
 async def disconnect(ctx):
     global voice
     voice = get(bot.voice_clients, guild=ctx.guild)
@@ -132,24 +127,9 @@ async def disconnect(ctx):
     pass
 
 
-@bot.command(aliases=['yt', 'y'], brief='Plays audio from a YouTube video', description='Arguments: Youtube search '
-                                                                                        'query.\nFunction: Plays '
-                                                                                        'audio to a voice channel from '
-                                                                                        'a YouTube video')
+@bot.command(aliases=['yt', 'y'])
 async def youtube(ctx, *args):
     global voice
-
-    if ctx.author.voice:  # If grizzo is not in a voice channel, auto join the one the user is in.
-        v_channel = ctx.author.voice.channel
-        voice = get(bot.voice_clients, guild=ctx.guild)
-
-        if voice and voice.is_connected():
-            await voice.move_to(v_channel)
-        else:
-            voice = await v_channel.connect()
-
-    else:
-        await ctx.send("Please enter a voice channel before requesting Grizzo to play a song.")
 
     url = music.search(args)
 
@@ -175,42 +155,12 @@ async def youtube(ctx, *args):
     voice.source.volume = 0.35
 
     cut = name.index(music.vid_id)
-    name = name[:(cut-1)]
+    name = name[:(cut - 1)]
     await ctx.send(f"Now playing: ***{name}***")
     pass
 
 
-@bot.command(brief='Pauses current audio source', description='Arguments: None.\nFunction: Pauses current audio '
-                                                              'source.')
-async def pause(ctx):
-    global voice
-    voice = get(bot.voice_clients, guild=ctx.guild)
-    if voice.is_playing():
-        voice.pause()
-    pass
-
-
-@bot.command(brief='Resumes current audio source if paused', description='Arguments: None.\nFunction: Resumes '
-                                                                         'current audio source if paused.')
-async def play(ctx):
-    global voice
-    voice = get(bot.voice_clients, guild=ctx.guild)
-    if voice.is_paused():
-        voice.resume()
-    pass
-
-
-@bot.command(brief='Stops audio source', description='Arguments: None.\nFunction: Stops current audio source.')
-async def stop(ctx):
-    global voice
-    voice = get(bot.voice_clients, guild=ctx.guild)
-    if voice.is_playing():
-        voice.stop()
-    pass
-
-
-@bot.command(aliases=['v'], brief='Changes audio volume', description='Arguments: Number between 0 and 1.\n'
-                                                                      'Function: Changes bot audio volume.')
+@bot.command(aliases=['v'])
 async def volume(ctx, arg: float):
     global voice
     voice = get(bot.voice_clients, guild=ctx.guild)
@@ -225,13 +175,68 @@ async def h(ctx):
     pass
 
 
+@bot.command(aliases=['censor'], pass_context=True)
+async def censorword(ctx, phrase):
+    await ctx.send(util.censorword(phrase, ctx.message))
+    pass
+
+@bot.command(aliases=['uncensor'], pass_context=True)
+async def uncensorword(ctx, phrase):
+    await ctx.send(util.uncensorword(phrase, ctx.message))
+    pass
+
+@bot.command(aliases=['listcensors'], pass_context=True)
+async def censorlist(ctx):
+    await ctx.send(util.censorlist(ctx.message))
+    pass
+
+@bot.command(aliases=['removepin'], pass_context=True)
+async def unpin(ctx, id):
+    await ctx.send(util.unpin(ctx.message, id))
+    pass
+
+@bot.command(aliases=['findpin'], pass_context=True)
+async def pin(ctx,id):
+    await ctx.send(content="Pinned by Grizzo", embed=(util.pin(ctx,id)))
+    pass
+
+@bot.command(aliases=['pinnedlist'], pass_context=True)
+async def pins(ctx, index=0):
+    await ctx.send(util.pins(ctx, index))
+    pass
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    #profanity filter
+    for xi in util.arrayCensoredWords:
+        if xi in message.content.strip().lower():
+            await message.channel.send('{}, your message has been censored'.format(message.author.mention))
+            await message.delete()
+            #print(xi)
+            break
+    #need to have this here so that the commands work
+    await bot.process_commands(message)
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    #print(reaction.message)
+    if reaction.emoji == "📌":
+        util.arrayPinned.append([reaction, user])
+        #print(arrayPinned[0][0].message.content)
+        channel = bot.get_channel(reaction.message.channel.id)
+        await channel.send('{}, has pinned {}\'s message, "{}"'.format(user.mention, reaction.message.author.mention, reaction.message.content))
+        #print(arrayPinned[0][1])
+
 @bot.event
 async def on_ready():
-    await bot.change_presence(status=discord.Status.idle, activity=discord.Game('Type !help for help'))
+    await bot.change_presence(status=discord.Status.idle, activity=discord.Game('Type !h for help'))
     print('Logged in as')
     print(bot.user.name)
     print(bot.user.id)
     print('------')
+    #util.loadSql()
 
 
 bot.run(config.TOKEN)
